@@ -14,7 +14,8 @@
  (contract-out
   [module-path->dependency-tree
    (->* (module-path?)
-        (#:max-depth exact-positive-integer?
+        (#:max-phase (or/c 'any exact-nonnegative-integer?)
+         #:max-depth exact-positive-integer?
          #:status-printf (-> string? any/c ... void?))
         (values
          (hash/c complete-module-path/c (listof complete-module-path/c))
@@ -34,6 +35,7 @@
 
 (define (module-path->dependency-tree start-mod-path
                                       #:max-depth [max-depth 2]
+                                      #:max-phase [max-phase 'any]
                                       #:status-printf [status eprintf])
   (define tree
     (make-hash))
@@ -52,12 +54,16 @@
             [`(quote ,_) #f]
             [`(submod ,path ,_) path]
             [_ mod-path]))
-        (for ([phase-list (in-list (module->imports mod-path))])
+        (for* ([phase-list (in-list (module->imports mod-path))]
+               [phase (in-value (car phase-list))]
+               #:when (or (eq? max-phase 'any)
+                          (and phase (<= phase max-phase)))
+               [mods (in-value (cdr phase-list))])
           (define dependencies
             (parameterize ([current-load-relative-directory (if path
                                                                 (simplify-path (build-path path 'up))
                                                                 (current-load-relative-directory))])
-              (for/list ([dep (in-list (cdr phase-list))])
+              (for/list ([dep (in-list mods)])
                 (define resolved-dep
                   (resolved-module-path-name (module-path-index-resolve dep)))
                 (cond

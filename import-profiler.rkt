@@ -71,6 +71,7 @@
            "import-profiler/profiler.rkt")
 
   (define leaves-only? #f)
+  (define max-phase 'any)
   (define max-depth 2)
   (define min-duration 5)
   (define mode 'place)
@@ -80,6 +81,12 @@
     (command-line
      #:once-each
      [("-l" "--leaves") "only print timings for leaf nodes" (set! leaves-only? #t)]
+     [("-P" "--max-phase") MAX-PHASE "the max module phase to consider"
+                           (define max-phase-n (string->number MAX-PHASE))
+                           (unless (and max-phase-n (>= max-phase-n 0))
+                             (eprintf "error: --max-phase must be a nonnegative integer~n")
+                             (exit 1))
+                           (set! max-phase max-phase-n)]
      [("-D" "--max-depth") MAX-DEPTH "the max dependency tree recursion depth"
                            (define max-depth-n (string->number MAX-DEPTH))
                            (unless (and max-depth-n (> max-depth-n 0))
@@ -112,6 +119,7 @@
       (apply printf fmt args)))
   (define-values (tree start-path)
     (module-path->dependency-tree
+     #:max-phase max-phase
      #:max-depth max-depth
      #:status-printf status
      module-path))
